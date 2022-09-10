@@ -1,14 +1,17 @@
 import argparse
-import os
+import os.path
 import sys
 
 from auditwheel.wheel_abi import NonPlatformWheel, analyze_wheel_abi
-from os.path import isfile
+from os.path import basename, isfile
+from shutil import copyfile
 
 
 def _parse_args():
     p = argparse.ArgumentParser(description="Rename Linux Python wheels.")
     p.add_argument("WHEEL_FILE", help="Path to wheel file.")
+    p.add_argument("-w", "--working-dir", help="Working directory")
+
     return p.parse_args()
 
 
@@ -37,10 +40,15 @@ def main():
     if isinstance(result, int):
         return result
 
-    renamed_wheel_file = args.WHEEL_FILE.replace(result["from"], result["to"])
+    file_name = basename(args.WHEEL_FILE)
+    renamed_file_name = file_name.replace(result["from"], result["to"])
+    if args.working_dir:
+        renamed_wheel_file = os.path.join(args.working_dir, renamed_file_name)
+    else:
+        renamed_wheel_file = args.WHEEL_FILE.replace(result["from"], result["to"])
 
     print(f"Renaming '{args.WHEEL_FILE}' to '{renamed_wheel_file}'.")
-    os.rename(args.WHEEL_FILE, renamed_wheel_file)
+    copyfile(args.WHEEL_FILE, renamed_wheel_file)
     return 0
 
 
