@@ -2,9 +2,11 @@ import argparse
 import os.path
 import sys
 
-from auditwheel.wheel_abi import NonPlatformWheel, analyze_wheel_abi
 from os.path import basename, isfile
 from shutil import copyfile
+
+from auditwheel.policy import WheelPolicies
+from auditwheel.wheel_abi import NonPlatformWheel, analyze_wheel_abi
 
 
 def _parse_args():
@@ -21,7 +23,8 @@ def _analyse_wheel(wheel_file):
         return 2
 
     try:
-        winfo = analyze_wheel_abi(wheel_file)
+        wheel_policy = WheelPolicies()
+        winfo = analyze_wheel_abi(wheel_policy, wheel_file, frozenset())
     except NonPlatformWheel:
         print("This does not look like a platform wheel")
         return 3
