@@ -50,8 +50,10 @@ def main():
     else:
         renamed_wheel_file = args.WHEEL_FILE.replace(result["from"], result["to"])
 
-    print(f"Renaming '{args.WHEEL_FILE}' to '{renamed_wheel_file}'.")
-    copyfile(args.WHEEL_FILE, renamed_wheel_file)
+    if args.WHEEL_FILE != renamed_wheel_file:
+        print(f"Renaming '{args.WHEEL_FILE}' to '{renamed_wheel_file}'.")
+        copyfile(args.WHEEL_FILE, renamed_wheel_file)
+
     return 0
 
 
