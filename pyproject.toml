@@ -1,3 +1,38 @@
 [build-system]
-requires = ["setuptools", "wheel"]
+requires = ["setuptools>=61.0", "setuptools_scm>=8.0"]
 build-backend = "setuptools.build_meta"
+
+[tool.setuptools-git-versioning]
+enabled = true
+
+[project]
+name = "renamewheel"
+dynamic = ["version"]
+keywords = ["Rename", "Wheel"]
+readme = "README.rst"
+license = "Apache-2.0"
+authors = [
+    { name="Hugh Sorby", email="h.sorby@auckland.ac.nz" },
+]
+dependencies = [
+    "auditwheel >= 6.4"
+]
+description = "Script for renaming Linux wheels."
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering :: Medical Science Apps.",
+]
+
+[project.scripts]
+renamewheel = "renamewheel.main:main"
+
+[project.urls]
+Homepage = "https://raw.githubusercontent.com/hsorby/renamewheel/refs/heads/main/README.rst"
+Repository = "https://github.com/hsorby/renamewheel"
+
+[project.optional-dependencies]
+test = ["coverage"]
+
+[tool.setuptools_scm]
