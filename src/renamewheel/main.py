@@ -1,14 +1,15 @@
 import argparse
 import os
 import os.path
+import pathlib
 import sys
 
 from os.path import basename, isfile
 from shutil import copyfile
 
-from auditwheel.policy import WheelPolicies
-from auditwheel.wheel_abi import NonPlatformWheel, analyze_wheel_abi
-
+from auditwheel.error import NonPlatformWheel, WheelToolsError
+from auditwheel.wheel_abi import analyze_wheel_abi
+from auditwheel.wheeltools import get_wheel_architecture, get_wheel_libc
 
 def _parse_args():
     p = argparse.ArgumentParser(description="Rename Linux Python wheels.")
@@ -24,13 +25,22 @@ def _analyse_wheel(wheel_file):
         return 2
 
     try:
-        wheel_policy = WheelPolicies()
-        winfo = analyze_wheel_abi(wheel_policy, wheel_file, frozenset())
+        arch = get_wheel_architecture(wheel_file)
+    except (WheelToolsError, NonPlatformWheel):
+        arch = None
+
+    try:
+        libc = get_wheel_libc(wheel_file)
+    except WheelToolsError:
+        libc = None
+
+    try:
+        winfo = analyze_wheel_abi(libc, arch, pathlib.Path(wheel_file), frozenset(), True, True)
     except NonPlatformWheel:
         print("This does not look like a platform wheel")
         return 3
 
-    return {"from": winfo.overall_tag, "to": winfo.sym_tag}
+    return winfo.overall_policy.name
 
 
 def main():
@@ -40,19 +50,23 @@ def main():
 
     args = _parse_args()
 
-    result = _analyse_wheel(args.WHEEL_FILE)
-    if isinstance(result, int):
-        return result
+    tag = _analyse_wheel(args.WHEEL_FILE)
+    if isinstance(tag, int):
+        return tag
 
     file_name = basename(args.WHEEL_FILE)
-    renamed_file_name = file_name.replace(result["from"], result["to"])
+
+    parts = file_name.split("-")
+    parts[-1] = tag
+    renamed_file_name = "-".join(parts) + ".whl"
+
     if args.working_dir:
         renamed_wheel_file = os.path.join(args.working_dir, renamed_file_name)
         print(f"Copying '{args.WHEEL_FILE}' to '{renamed_wheel_file}'.")
         if args.WHEEL_FILE != renamed_wheel_file:
             copyfile(args.WHEEL_FILE, renamed_wheel_file)
     else:
-        renamed_wheel_file = args.WHEEL_FILE.replace(result["from"], result["to"])
+        renamed_wheel_file = os.path.join(os.path.dirname(args.WHEEL_FILE), renamed_file_name)
         print(f"Renaming '{args.WHEEL_FILE}' to '{renamed_wheel_file}'.")
         os.rename(args.WHEEL_FILE, renamed_file_name)
 
