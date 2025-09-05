@@ -2,7 +2,8 @@ import argparse
 import os.path
 import pathlib
 import sys
-from contextlib import redirect_stderr
+import zipfile
+from contextlib import redirect_stderr, nullcontext
 from io import StringIO
 from shutil import copyfile
 
@@ -41,7 +42,20 @@ def _parse_args() -> argparse.Namespace:
     return p.parse_args()
 
 
-def _analyse_wheel_abi_tag(wheel_path: pathlib.Path) -> str:
+def _get_aspect(fcn, str_path, verbose):
+    aspect = None
+    try:
+        captured_error = StringIO()
+        context_manager = nullcontext() if verbose else redirect_stderr(captured_error)
+        with context_manager:
+            aspect = fcn(str_path)
+    except (WheelToolsError, NonPlatformWheel):
+        pass
+
+    return aspect
+
+
+def _analyse_wheel_abi_tag(wheel_path: pathlib.Path, verbose) -> str:
     """
     Analyzes a wheel file to determine its platform ABI tag.
 
@@ -58,17 +72,21 @@ def _analyse_wheel_abi_tag(wheel_path: pathlib.Path) -> str:
     if not wheel_path.is_file():
         raise WheelNotFoundError(f"Cannot access '{wheel_path}'. No such file.")
 
+    if not zipfile.is_zipfile(wheel_path):
+        raise NotPlatformWheelError(f"'{wheel_path.name}' is not a zip file.")
+
+    str_path = str(wheel_path)
+    arch = _get_aspect(get_wheel_architecture, str_path, verbose)
+    libc = _get_aspect(get_wheel_libc, str_path, verbose)
+
     try:
-        # auditwheel functions expect string paths
-        str_path = str(wheel_path)
         captured_error = StringIO()
-        with redirect_stderr(captured_error):
-            arch = get_wheel_architecture(str_path)
-            libc = get_wheel_libc(str_path)
-    except (WheelToolsError, NonPlatformWheel, InvalidWheelFilename) as e:
+        context_manager = nullcontext() if verbose else redirect_stderr(captured_error)
+        with context_manager:
+            winfo = analyze_wheel_abi(libc, arch, wheel_path, frozenset(), True, True)
+    except NonPlatformWheel as e:
         raise NotPlatformWheelError(f"'{wheel_path.name}' is not a valid platform wheel.") from e
 
-    winfo = analyze_wheel_abi(libc, arch, wheel_path, frozenset(), True, True)
     return winfo.overall_policy.name
 
 
@@ -110,7 +128,7 @@ def main() -> int:
         return EXIT_WRONG_PLATFORM
 
     try:
-        new_platform_tag = _analyse_wheel_abi_tag(args.WHEEL_FILE)
+        new_platform_tag = _analyse_wheel_abi_tag(args.WHEEL_FILE, args.verbose)
         new_filename = _generate_new_filename(args.WHEEL_FILE, new_platform_tag)
     except (WheelNotFoundError, NotPlatformWheelError) as e:
         if args.verbose:
