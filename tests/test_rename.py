@@ -1,7 +1,8 @@
 import os
+import pathlib
 import sys
 import unittest
-from contextlib import redirect_stdout
+from contextlib import redirect_stdout, redirect_stderr
 from io import StringIO
 from unittest.mock import patch
 
@@ -46,12 +47,14 @@ class RenameTestCase(unittest.TestCase):
         """
         _mock_platform(linux_platform)
         captured_output = StringIO()
+        captured_error = StringIO()
 
         # Patch sys.argv and redirect stdout to capture the output
-        with patch('sys.argv', argv), redirect_stdout(captured_output):
+        with patch('sys.argv', argv), redirect_stdout(captured_output), redirect_stderr(captured_error):
             result = main()
 
         output = captured_output.getvalue()
+        output += captured_error.getvalue()
 
         # Assert that the return code and captured output match expectations
         self.assertEqual(expected_code, result, f"Expected return code {expected_code}, but got {result}.")
@@ -60,7 +63,9 @@ class RenameTestCase(unittest.TestCase):
     @patch('sys.argv', ['main.py'])
     def test_arg_error(self):
         """Test that the script exits when no arguments are provided."""
-        self.assertRaises(SystemExit, main)
+        captured_error = StringIO()
+        with redirect_stderr(captured_error):
+            self.assertRaises(SystemExit, main)
 
     def test_wrong_platform(self):
         """Test silent failure on a non-Linux platform."""
@@ -69,7 +74,7 @@ class RenameTestCase(unittest.TestCase):
     def test_wrong_platform_verbose(self):
         """Test verbose failure message on a non-Linux platform."""
         self._run_main_and_assert(
-            ['main.py', '-v', 'some-wheel'], 1, "Error: This tool only supports Linux\n", linux_platform=False
+            ['main.py', '-v', 'some-wheel'], 1, "Error: This tool only supports Linux.\n", linux_platform=False
         )
 
     def test_non_existent(self):
@@ -91,7 +96,7 @@ class RenameTestCase(unittest.TestCase):
         self._run_main_and_assert(
             ['main.py', '-v', "this-0.1.0-py3-not-wheel.whl"],
             3,
-            "This does not look like a platform wheel 'this-0.1.0-py3-not-wheel.whl'.\n"
+            "'this-0.1.0-py3-not-wheel.whl' is not a valid platform wheel.\n"
         )
 
     def test_not_a_wheel_libc(self):
@@ -103,7 +108,7 @@ class RenameTestCase(unittest.TestCase):
         self._run_main_and_assert(
             ['main.py', '-v', "renamewheel-0.3.1-py3-none-any.whl"],
             3,
-            "This does not look like a platform wheel 'renamewheel-0.3.1-py3-none-any.whl'.\n"
+            "'renamewheel-0.3.1-py3-none-any.whl' is not a valid platform wheel.\n"
         )
 
     def test_platform_wheel(self):
@@ -115,6 +120,7 @@ class RenameTestCase(unittest.TestCase):
         """Test verbose output for a successful rename."""
         wheel = "simple_manylinux_demo-4.0-cp312-cp312-manylinux_2_5_x86_64.whl"
         expected_output = f"Renaming '{wheel}' to '{wheel}'.\n"
+        expected_output = "Name and location haven't changed, doing nothing.\n"
         self._run_main_and_assert(['main.py', '-v', wheel], 0, expected_output)
 
     def test_platform_wheel_working_dir(self):
@@ -134,7 +140,7 @@ class RenameTestCase(unittest.TestCase):
         wheel = "simple_manylinux_demo-4.0-cp312-cp312-manylinux_2_5_x86_64.whl"
         target_dir = resource_path('..')
         target_file = os.path.join(target_dir, wheel)
-        expected_output = f"Copying '{wheel}' to {target_file!r}.\n"
+        expected_output = f"Copying '{resource_path(wheel)}' to '{target_file}'.\n"
 
         self._run_main_and_assert(['main.py', '-v', '-w', target_dir, wheel], 0, expected_output)
 
@@ -152,8 +158,40 @@ class RenameTestCase(unittest.TestCase):
         """Test verbose output when the target directory is the same and the name is unchanged."""
         wheel = "simple_manylinux_demo-4.0-cp312-cp312-manylinux_2_5_x86_64.whl"
         target_dir = resource_path('')
-        expected_output = "Name hasn't changed, doing nothing.\n"
+        expected_output = "Name and location haven't changed, doing nothing.\n"
         self._run_main_and_assert(['main.py', '-v', '-w', target_dir, wheel], 0, expected_output)
+
+    def test_platform_wheel_rename(self):
+        """Test successful rename when the target directory is the same as the source."""
+        wheel = "Simple.Manylinux.Demo-4.0-cp313-cp313-manylinux_2_5_x86_64.whl"
+        self._run_main_and_assert(['main.py', wheel], 0, "")
+        # Restore renamed file.
+        destination_path = pathlib.Path(resource_path('simple_manylinux_demo-4.0-cp313-cp313-manylinux_2_5_x86_64.whl'))
+        source_path = pathlib.Path(resource_path(wheel))
+        destination_path.rename(source_path)
+
+    def test_platform_wheel_rename_verbose(self):
+        """Test successful rename when the target directory is the same as the source."""
+        wheel = "Simple.Manylinux.Demo-4.0-cp313-cp313-manylinux_2_5_x86_64.whl"
+        expected_output = f"Renaming {wheel!r} to 'simple_manylinux_demo-4.0-cp313-cp313-manylinux_2_5_x86_64.whl'.\n"
+        self._run_main_and_assert(['main.py', '-v', wheel], 0, expected_output)
+        # Restore renamed file.
+        destination_path = pathlib.Path(resource_path('simple_manylinux_demo-4.0-cp313-cp313-manylinux_2_5_x86_64.whl'))
+        source_path = pathlib.Path(resource_path(wheel))
+        destination_path.rename(source_path)
+
+    def test_platform_wheel_invalid_output_dir(self):
+        """Test successful rename when the target directory is the same as the source."""
+        wheel = "simple_manylinux_demo-4.0-cp312-cp312-manylinux_2_5_x86_64.whl"
+        target_dir = resource_path('die')
+        self._run_main_and_assert(['main.py', '-w', target_dir, wheel], 4, "")
+
+    def test_platform_wheel_invalid_output_dir_verbose(self):
+        """Test successful rename when the target directory is the same as the source."""
+        wheel = "simple_manylinux_demo-4.0-cp312-cp312-manylinux_2_5_x86_64.whl"
+        target_dir = resource_path('die')
+        expected_output = f"Output directory '{target_dir}' does not exist.\n"
+        self._run_main_and_assert(['main.py', '-v', '-w', target_dir, wheel], 4, expected_output)
 
 
 if __name__ == "__main__":
