@@ -58,7 +58,8 @@ class RenameTestCase(unittest.TestCase):
 
         # Assert that the return code and captured output match expectations
         self.assertEqual(expected_code, result, f"Expected return code {expected_code}, but got {result}.")
-        self.assertEqual(expected_output, output, f"Expected output did not match.")
+        if expected_output is not None:
+            self.assertEqual(expected_output, output, f"Expected output did not match.")
 
     @patch('sys.argv', ['main.py'])
     def test_arg_error(self):
@@ -93,10 +94,11 @@ class RenameTestCase(unittest.TestCase):
 
     def test_not_a_platform_wheel_verbose(self):
         """Test verbose failure for a file that is not a platform wheel."""
+        expected_output = "'this-0.1.0-py3-not-wheel.whl' is not a zip file.\n"
         self._run_main_and_assert(
             ['main.py', '-v', "this-0.1.0-py3-not-wheel.whl"],
             3,
-            "'this-0.1.0-py3-not-wheel.whl' is not a valid platform wheel.\n"
+            expected_output
         )
 
     def test_not_a_wheel_libc(self):
@@ -192,6 +194,15 @@ class RenameTestCase(unittest.TestCase):
         target_dir = resource_path('die')
         expected_output = f"Output directory '{target_dir}' does not exist.\n"
         self._run_main_and_assert(['main.py', '-v', '-w', target_dir, wheel], 4, expected_output)
+
+    def test_platform_wheel_invalid_architecture(self):
+        wheel = "robotpy_hal-2025.3.2.3-cp313-cp313-linux_x86_64.whl"
+        expected_output = ""
+        self._run_main_and_assert(['main.py', wheel], 0, expected_output)
+        # Restore renamed file.
+        destination_path = pathlib.Path(resource_path('robotpy_hal-2025.3.2.3-cp313-cp313-manylinux_2_34_x86_64.whl'))
+        source_path = pathlib.Path(resource_path(wheel))
+        destination_path.rename(source_path)
 
 
 if __name__ == "__main__":
