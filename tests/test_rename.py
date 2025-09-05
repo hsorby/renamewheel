@@ -190,7 +190,7 @@ class RenameTestCase(unittest.TestCase):
         """Test successful rename when the target directory is the same as the source."""
         wheel = "simple_manylinux_demo-4.0-cp312-cp312-manylinux_2_5_x86_64.whl"
         target_dir = resource_path('die')
-        expected_output = f"Output directory {pathlib.Path(target_dir)!r} does not exist.\n"
+        expected_output = f"Output directory {pathlib.Path(target_dir).resolve()!r} does not exist.\n"
         self._run_main_and_assert(['main.py', '-v', '-w', target_dir, wheel], 4, expected_output)
 
 
