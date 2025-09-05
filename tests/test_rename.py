@@ -140,7 +140,7 @@ class RenameTestCase(unittest.TestCase):
         wheel = "simple_manylinux_demo-4.0-cp312-cp312-manylinux_2_5_x86_64.whl"
         target_dir = resource_path('..')
         target_file = os.path.join(target_dir, wheel)
-        expected_output = f"Copying '{resource_path(wheel)}' to {target_file!r}.\n"
+        expected_output = f"Copying '{resource_path(wheel)}' to '{target_file}'.\n"
 
         self._run_main_and_assert(['main.py', '-v', '-w', target_dir, wheel], 0, expected_output)
 
