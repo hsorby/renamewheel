@@ -83,7 +83,7 @@ def _analyse_wheel_abi_tag(wheel_path: pathlib.Path, verbose) -> str:
         captured_error = StringIO()
         context_manager = nullcontext() if verbose else redirect_stderr(captured_error)
         with context_manager:
-            winfo = analyze_wheel_abi(libc, arch, wheel_path, frozenset(), True, True)
+            winfo = analyze_wheel_abi(libc, arch, wheel_path, frozenset(), disable_isa_ext_check=True, allow_graft=True)
     except NonPlatformWheelError as e:
         raise NotPlatformWheelError(f"'{wheel_path.name}' is not a valid platform wheel.") from e
 
