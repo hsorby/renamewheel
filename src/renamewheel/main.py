@@ -7,7 +7,7 @@ from contextlib import redirect_stderr, nullcontext
 from io import StringIO
 from shutil import copyfile
 
-from auditwheel.error import NonPlatformWheel, WheelToolsError
+from auditwheel.error import NonPlatformWheelError, WheelToolsError
 from auditwheel.wheel_abi import analyze_wheel_abi
 from auditwheel.wheeltools import get_wheel_architecture, get_wheel_libc
 from packaging.utils import InvalidWheelFilename, parse_wheel_filename
@@ -49,7 +49,7 @@ def _get_aspect(fcn, str_path, verbose):
         context_manager = nullcontext() if verbose else redirect_stderr(captured_error)
         with context_manager:
             aspect = fcn(str_path)
-    except (WheelToolsError, NonPlatformWheel):
+    except (WheelToolsError, NonPlatformWheelError):
         pass
 
     return aspect
@@ -83,8 +83,8 @@ def _analyse_wheel_abi_tag(wheel_path: pathlib.Path, verbose) -> str:
         captured_error = StringIO()
         context_manager = nullcontext() if verbose else redirect_stderr(captured_error)
         with context_manager:
-            winfo = analyze_wheel_abi(libc, arch, wheel_path, frozenset(), True, True)
-    except NonPlatformWheel as e:
+            winfo = analyze_wheel_abi(libc, arch, wheel_path, frozenset(), disable_isa_ext_check=True, allow_graft=True)
+    except NonPlatformWheelError as e:
         raise NotPlatformWheelError(f"'{wheel_path.name}' is not a valid platform wheel.") from e
 
     return winfo.overall_policy.name

@@ -15,10 +15,10 @@ authors = [
     { name="Hugh Sorby", email="h.sorby@auckland.ac.nz" },
 ]
 dependencies = [
-    "auditwheel >= 6.4"
+    "auditwheel >= 6.6"
 ]
 description = "Script for renaming Linux wheels."
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 classifiers = [
     "Programming Language :: Python :: 3",
     "Operating System :: OS Independent",
