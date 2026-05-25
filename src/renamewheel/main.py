@@ -42,13 +42,13 @@ def _parse_args() -> argparse.Namespace:
     return p.parse_args()
 
 
-def _get_aspect(fcn, str_path, verbose):
+def _get_aspect(fcn, wheel_name, verbose):
     aspect = None
     try:
         captured_error = StringIO()
         context_manager = nullcontext() if verbose else redirect_stderr(captured_error)
         with context_manager:
-            aspect = fcn(str_path)
+            aspect = fcn(wheel_name)
     except (WheelToolsError, NonPlatformWheelError):
         pass
 
@@ -75,9 +75,8 @@ def _analyse_wheel_abi_tag(wheel_path: pathlib.Path, verbose) -> str:
     if not zipfile.is_zipfile(wheel_path):
         raise NotPlatformWheelError(f"'{wheel_path.name}' is not a zip file.")
 
-    str_path = str(wheel_path)
-    arch = _get_aspect(get_wheel_architecture, str_path, verbose)
-    libc = _get_aspect(get_wheel_libc, str_path, verbose)
+    arch = _get_aspect(get_wheel_architecture, wheel_path.name, verbose)
+    libc = _get_aspect(get_wheel_libc, wheel_path.name, verbose)
 
     try:
         captured_error = StringIO()
